@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Client Tombola - Home</title>
+    <style>
+      body {
+        font-family: Arial;
+        text-align: center;
+        padding: 2rem;
+      }
+      input {
+        margin: 0.5rem;
+        padding: 0.5rem;
+      }
+      button {
+        padding: 0.5rem 1rem;
+        margin-top: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Client Tombola</h2>
+    <input
+      id="serverUrl"
+      type="text"
+      placeholder="URL server (es. http://localhost:3001)"
+      size="40"
+    /><br />
+    <input id="username" type="text" placeholder="Username" /><br />
+    <button onclick="play()">Gioca</button>
+
+    <script>
+      function play() {
+        const serverUrl = document.getElementById('serverUrl').value;
+        const username = document.getElementById('username').value;
+        if (!serverUrl || !username) {
+          alert('Inserisci URL server e username');
+          return;
+        }
+        localStorage.setItem('serverUrl', serverUrl);
+        localStorage.setItem('username', username);
+        window.location.href = 'scheda.html';
+      }
+    </script>
+  </body>
+</html>
