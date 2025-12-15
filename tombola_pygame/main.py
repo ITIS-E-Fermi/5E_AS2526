@@ -4,6 +4,7 @@ import pygame
 import sys
 import random
 import requests
+import time
 
 # Initialize Pygame
 pygame.init()
@@ -132,51 +133,81 @@ def draw_game(username, card, selected, message, message_color):
     pygame.display.flip()
 
 def get_card_cell_at_pos(pos):
+    """Return (row, col) of the card cell at screen position pos, or (None, None) if outside cells."""
     x0, y0 = BOARD_TOPLEFT
     x, y = pos
+    # Quick bounds check
+    total_width = 9 * CELL_SIZE + 8 * GAP
+    total_height = 3 * CELL_SIZE + 2 * GAP
+    if x < x0 or x > x0 + total_width or y < y0 or y > y0 + total_height:
+        return None, None
+    relx = x - x0
+    rely = y - y0
+    cell_w = CELL_SIZE + GAP
+    col = int(relx // cell_w)
+    row = int(rely // cell_w)
+    # Make sure click wasn't in the gap area
+    cx = relx % cell_w
+    cy = rely % cell_w
+    if cx > CELL_SIZE or cy > CELL_SIZE:
+        return None, None
+    if 0 <= row < 3 and 0 <= col < 9:
+        return row, col
+    return None, None
 
+
+def try_join(server_url, username, card):
+    global message, message_color
+    try:
+        url = server_url.rstrip('/') + '/join'
+        payload = {"username": username, "card": [[n for n in row if n is not None] for row in card]}
+        res = requests.post(url, json=payload, timeout=5)
+        data = res.json()
+        if 'error' in data:
+            message = 'Errore registrazione: ' + str(data['error'])
+            message_color = (200, 0, 0)
+        else:
+            message = 'Registrazione avvenuta con successo!'
+            message_color = GREEN
+    except Exception:
+        message = 'Errore di connessione al server'
+        message_color = (200, 0, 0)
+
+
+def try_check_win(server_url, username, selected, win_type):
+    global message, message_color
+    try:
+        url = server_url.rstrip('/') + '/checkWin'
+        payload = {"username": username, "numbers": selected}
+        res = requests.post(url, json=payload, timeout=5)
+        data = res.json()
+        if 'error' in data:
+            message = 'Errore: ' + str(data['error'])
+            message_color = (200, 0, 0)
+        else:
+            message = f'Vincita registrata: {data.get("type", win_type)}'
+            message_color = GREEN
+    except Exception:
+        message = 'Errore di connessione al server'
+        message_color = (200, 0, 0)
+
+
+def main():
+    global active_url, active_user, server_url, username, message
     running = True
     on_home = True
     card = None
     selected = []
-
-    def try_join(server_url, username, card):
-        global message, message_color
-        try:
-            url = server_url.rstrip('/') + '/join'
-            payload = {"username": username, "card": [[n for n in row if n is not None] for row in card]}
-            res = requests.post(url, json=payload, timeout=5)
-            data = res.json()
-            if 'error' in data:
-                message = 'Errore registrazione: ' + str(data['error'])
-                message_color = (200, 0, 0)
-            else:
-                message = 'Registrazione avvenuta con successo!'
-                message_color = GREEN
-        except Exception as e:
-            message = 'Errore di connessione al server'
-            message_color = (200, 0, 0)
-
-    def try_check_win(server_url, username, selected, win_type):
-        global message, message_color
-        try:
-            url = server_url.rstrip('/') + '/checkWin'
-            payload = {"username": username, "numbers": selected}
-            res = requests.post(url, json=payload, timeout=5)
-            data = res.json()
-            if 'error' in data:
-                message = 'Errore: ' + str(data['error'])
-                message_color = (200, 0, 0)
-            else:
-                message = f'Vincita registrata: {data.get("type", win_type)}'
-                message_color = GREEN
-        except Exception as e:
-            message = 'Errore di connessione al server'
-            message_color = (200, 0, 0)
+    print('main: starting game loop')
+    start_time = time.time()
 
     while running:
         for event in pygame.event.get():
+            # Debug: print events for first 3 seconds to inspect unexpected QUIT
+            if time.time() - start_time < 3:
+                print('event:', event)
             if event.type == pygame.QUIT:
+                print('main: received QUIT event')
                 running = False
             if on_home:
                 if event.type == pygame.MOUSEBUTTONDOWN:
@@ -232,3 +263,7 @@ def get_card_cell_at_pos(pos):
             draw_game(username, card, selected, message, message_color)
     pygame.quit()
     sys.exit()
+
+
+if __name__ == '__main__':
+    main()
